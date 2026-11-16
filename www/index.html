@@ -1,0 +1,1039 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<title>Lumina Studio Pro</title>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/selfie_segmentation.js" crossorigin="anonymous"></script>
+<script>
+(function(){
+  var c=localStorage.getItem("lumina_live_override");
+  if(c && c.indexOf("</html>")!==-1 && !window.__LUMINA_OK__){
+    window.__LUMINA_OK__=1;
+    window.addEventListener("DOMContentLoaded",function(){
+      var doc=new DOMParser().parseFromString(c,"text/html");
+      document.head.innerHTML=doc.head.innerHTML;
+      document.body.innerHTML=doc.body.innerHTML;
+      doc.querySelectorAll("script").forEach(function(s){
+        if(!s.src && s.textContent.indexOf("__LUMINA_OK__")===-1){
+          var ns=document.createElement("script");ns.textContent=s.textContent;document.body.appendChild(ns);
+        }
+      });
+    });
+  }
+})();
+</script>
+<style>
+:root{
+  --bg:#09090b;--panel:#121215;--surface:#1c1c21;--surface2:#27272e;
+  --text:#f4f4f5;--muted:#a1a1aa;--accent:#0ea5e9;--accent2:#8b5cf6;--border:#2e2e36;
+}
+*{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;-webkit-tap-highlight-color:transparent;user-select:none}
+body{background:var(--bg);color:var(--text);height:100vh;display:flex;flex-direction:column;overflow:hidden}
+.hidden{display:none!important}
+
+/* Top Bar */
+.topbar{height:50px;background:var(--panel);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 12px;flex-shrink:0}
+.tgroup{display:flex;align-items:center;gap:8px}
+.tbtn{background:var(--surface);border:1px solid var(--border);color:var(--text);height:34px;padding:0 10px;border-radius:8px;font-size:12px;font-weight:600;display:flex;align-items:center;gap:5px;cursor:pointer}
+.tbtn:disabled{opacity:.35}
+.tbtn-primary{background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;color:#fff;font-weight:700}
+
+/* Home Library Screen */
+.home-screen{flex:1;overflow-y:auto;padding:16px}
+.studio-banner{background:linear-gradient(135deg,#18181b,#1e1b4b);border:1px solid var(--border);border-radius:18px;padding:20px;margin-bottom:16px}
+.studio-banner h1{font-size:20px;font-weight:800;letter-spacing:-0.3px}
+.studio-banner p{font-size:12px;color:var(--muted);margin-top:4px}
+.action-cards{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px}
+.acard{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:16px 14px;display:flex;flex-direction:column;gap:8px;cursor:pointer;text-align:left;color:var(--text)}
+.acard.main{grid-column:span 2;background:linear-gradient(135deg,rgba(14,165,233,0.18),rgba(139,92,246,0.18));border-color:var(--accent);flex-direction:row;align-items:center;gap:14px}
+.acard-ico{width:44px;height:44px;border-radius:12px;background:var(--surface);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+.recent-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+.recent-item{aspect-ratio:1;background:var(--surface);border-radius:10px;overflow:hidden;border:1px solid var(--border);position:relative;cursor:pointer}
+.recent-item img{width:100%;height:100%;object-fit:cover}
+
+/* Editor Workspace */
+.editor-screen{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.viewport{flex:1;position:relative;background:#050507;display:flex;align-items:center;justify-content:center;overflow:hidden;touch-action:none}
+canvas#mainCanvas{max-width:96%;max-height:96%;box-shadow:0 12px 40px rgba(0,0,0,0.85);transform-origin:center center}
+.hud-pills{position:absolute;top:10px;left:10px;right:10px;display:flex;justify-content:space-between;pointer-events:none}
+.hud-pill{background:rgba(18,18,21,0.82);backdrop-filter:blur(8px);border:1px solid var(--border);padding:5px 10px;border-radius:20px;font-size:11px;font-weight:600;pointer-events:auto;cursor:pointer}
+
+/* Bottom Studio Dock */
+.dock{background:var(--panel);border-top:1px solid var(--border);flex-shrink:0}
+.subpanel{padding:11px 14px;max-height:34vh;overflow-y:auto}
+.nav-strip{display:flex;overflow-x:auto;border-top:1px solid var(--border);background:#0c0c0e;scrollbar-width:none}
+.nav-strip::-webkit-scrollbar{display:none}
+.nav-item{flex:1;min-width:62px;padding:8px 4px;background:none;border:none;color:var(--muted);font-size:10px;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer}
+.nav-item.active{color:var(--accent);background:rgba(14,165,233,0.1)}
+.nav-item span{font-size:16px}
+
+/* Sliders & Controls */
+.ctrl-row{margin-bottom:10px}
+.ctrl-lbl{display:flex;justify-content:space-between;font-size:11.5px;color:var(--muted);margin-bottom:4px;font-weight:600}
+.ctrl-lbl b{color:var(--text);font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;height:4px;background:var(--surface2);border-radius:4px;accent-color:var(--accent);outline:none}
+.chip-bar{display:flex;gap:7px;overflow-x:auto;padding-bottom:6px;scrollbar-width:none}
+.chip-bar::-webkit-scrollbar{display:none}
+.chip{background:var(--surface);border:1px solid var(--border);color:var(--text);padding:6px 12px;border-radius:16px;font-size:11.5px;font-weight:600;white-space:nowrap;cursor:pointer;flex-shrink:0}
+.chip.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn{background:var(--accent);color:#fff;border:none;border-radius:9px;padding:9px 12px;font-size:12.5px;font-weight:700;cursor:pointer;width:100%}
+.btn-sec{background:var(--surface);border:1px solid var(--border);color:var(--text)}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px}
+input[type=text],input[type=password],select,textarea{background:var(--surface);border:1px solid var(--border);color:var(--text);padding:9px 10px;border-radius:9px;font-size:12.5px;width:100%;outline:none;user-select:text}
+
+/* Tone Curve Canvas */
+.curve-box{display:flex;gap:10px;align-items:center;background:var(--surface);padding:8px;border-radius:10px;margin-bottom:8px}
+canvas#curveCanvas{background:#09090b;border:1px solid var(--border);border-radius:6px;touch-action:none}
+
+/* Modals & Toast */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;padding:14px;z-index:100}
+.modal{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:16px;width:100%;max-width:420px;max-height:85vh;overflow-y:auto}
+.toast{position:fixed;top:60px;left:50%;transform:translateX(-50%);background:#18181b;border:1px solid var(--accent);color:#fff;padding:7px 16px;border-radius:20px;font-size:12px;font-weight:600;z-index:200;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.show{opacity:1}
+.spinner{width:16px;height:16px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<div id="toast" class="toast">Saved</div>
+
+<!-- ==================== 1. HOME / LIBRARY SCREEN ==================== -->
+<div id="homeView" class="home-screen">
+  <div class="topbar" style="margin:-16px -16px 16px -16px;padding:0 16px">
+    <div style="font-weight:800;font-size:16px;letter-spacing:-0.3px">✦ Lumina Studio Pro</div>
+    <div style="font-size:11px;color:var(--muted);cursor:pointer" onclick="secretTap()">Dhaneshwar Jal</div>
+  </div>
+
+  <div class="studio-banner">
+    <h1>Pro Photo & AI Studio</h1>
+    <p>Lightroom Color Engine • PicsArt Layers • On-Device AI Cutout & Masking • Zero Login</p>
+  </div>
+
+  <div class="action-cards">
+    <label class="acard main">
+      <div class="acard-ico">🖼️</div>
+      <div>
+        <div style="font-weight:800;font-size:15px">Open Photo from Gallery</div>
+        <div style="font-size:11.5px;color:var(--muted)">RAW / JPG / PNG Full Resolution Editing</div>
+      </div>
+      <input type="file" accept="image/*" class="hidden" onchange="openPhotoFile(this)"/>
+    </label>
+
+    <label class="acard">
+      <div class="acard-ico">📷</div>
+      <div style="font-weight:700;font-size:13.5px">Pro Camera</div>
+      <div style="font-size:11px;color:var(--muted)">Capture & Edit</div>
+      <input type="file" accept="image/*" capture="environment" class="hidden" onchange="openPhotoFile(this)"/>
+    </label>
+
+    <button class="acard" onclick="createBlankCanvas()">
+      <div class="acard-ico">🎨</div>
+      <div style="font-weight:700;font-size:13.5px">Blank Canvas</div>
+      <div style="font-size:11px;color:var(--muted)">Poster / Thumbnail</div>
+    </button>
+  </div>
+
+  <div style="display:flex;justify-content:space-between;align-items:center">
+    <b style="font-size:13px">Recent Edits (Non-Destructive)</b>
+    <span style="font-size:11px;color:var(--muted)" id="recCount">0 Projects</span>
+  </div>
+  <div class="recent-grid" id="recentGrid"></div>
+</div>
+
+<!-- ==================== 2. EDITOR WORKSPACE ==================== -->
+<div id="editorView" class="editor-screen hidden">
+  <div class="topbar">
+    <div class="tgroup">
+      <button class="tbtn" onclick="backToHome()">← Library</button>
+      <button class="tbtn" id="undoBtn" onclick="undo()" disabled>↶</button>
+      <button class="tbtn" id="redoBtn" onclick="redo()" disabled>↷</button>
+    </div>
+    <div class="tgroup">
+      <button class="tbtn" onclick="showInfo()">ⓘ</button>
+      <button class="tbtn tbtn-primary" onclick="openExport()">Export</button>
+    </div>
+  </div>
+
+  <div class="viewport" id="viewport">
+    <div class="hud-pills">
+      <div class="hud-pill" id="zoomResetPill" onclick="resetZoom()">100% Fit</div>
+      <div class="hud-pill" ontouchstart="setCompare(true)" ontouchend="setCompare(false)" onmousedown="setCompare(true)" onmouseup="setCompare(false)">👁️ Before / After</div>
+    </div>
+    <canvas id="mainCanvas"></canvas>
+  </div>
+
+  <div class="dock">
+    <div class="subpanel">
+
+      <!-- T1: AI STUDIO (OFFLINE CUTOUT + ONLINE GENERATIVE AI) -->
+      <div id="tab-ai">
+        <div class="g2" style="margin-bottom:9px">
+          <button class="btn" id="aiCutoutBtn" onclick="runOnDeviceCutout()">✂️ AI Remove BG (Offline)</button>
+          <button class="btn btn-sec" onclick="aiAutoEnhance()">⚡ AI Auto Tone</button>
+        </div>
+        <div style="display:flex;gap:6px;margin-bottom:8px">
+          <input type="text" id="genPrompt" placeholder="AI Prompt (e.g. Black leather jacket, Neon street BG, 4K DSLR)"/>
+          <button class="btn" style="width:auto;padding:0 14px" id="genBtn" onclick="runGenerativeAI()">✨ Generate</button>
+        </div>
+        <div class="chip-bar">
+          <button class="chip" onclick="fillPrompt('Ultra sharp 4K DSLR portrait, natural skin texture, studio lighting')">4K HD Upscale</button>
+          <button class="chip" onclick="fillPrompt('Change background to luxury dark studio with soft rim light')">Studio Backdrop</button>
+          <button class="chip" onclick="fillPrompt('Cinematic teal and orange blockbuster movie look')">Hollywood Grade</button>
+          <button class="chip" onclick="fillPrompt('3D Pixar style stylized portrait keeping exact face')">3D Avatar</button>
+        </div>
+        <div id="aiMsg" style="font-size:11px;color:var(--accent);margin-top:4px"></div>
+      </div>
+
+      <!-- T2: LIGHT & TONE CURVE (LIGHTROOM) -->
+      <div id="tab-light" class="hidden">
+        <div class="curve-box">
+          <canvas id="curveCanvas" width="110" height="110"></canvas>
+          <div style="flex:1">
+            <div style="font-size:11.5px;font-weight:700;margin-bottom:5px">Tone Curve (Midtones / Highlights)</div>
+            <div class="g2">
+              <button class="btn btn-sec" style="padding:6px;font-size:11px" onclick="resetCurve()">Reset Curve</button>
+              <button class="btn btn-sec" style="padding:6px;font-size:11px" onclick="sCurve()">S-Curve Punch</button>
+            </div>
+          </div>
+        </div>
+        <div class="ctrl-row"><div class="ctrl-lbl"><span>Exposure</span><b id="val-exp">0</b></div><input type="range" id="sl-exp" min="-100" max="100" value="0" onchange="pushHistory()" oninput="onSlider()"/></div>
+        <div class="ctrl-row"><div class="ctrl-lbl"><span>Contrast</span><b id="val-con">0</b></div><input type="range" id="sl-con" min="-100" max="100" value="0" onchange="pushHistory()" oninput="onSlider()"/></div>
+        <div class="ctrl-row"><div class="ctrl-lbl"><span>Highlights</span><b id="val-hi">0</b></div><input type="range" id="sl-hi" min="-100" max="100" value="0" onchange="pushHistory()" oninput="onSlider()"/></div>
+        <div class="ctrl-row"><div class="ctrl-lbl"><span>Shadows</span><b id="val-sh">0</b></div><input type="range" id="sl-sh" min="-100" max="100" value="0" onchange="pushHistory()" oninput="onSlider()"/></div>
+        <div class="ctrl-row"><div class="ctrl-lbl"><span>Whites</span><b id="val-wh">0</b></div><input type="range" id="sl-wh" min="-100" max="100" value="0" onchange="pushHistory()" oninput="onSlider()"/></div>
+        <div class="ctrl-row"><div class="ctrl-lbl"><span>Blacks</span><b id="val-bl">0</b></div><input type="range" id="sl-bl" min="-100" max="100" value="0" onchange="pushHistory()" oninput="onSlider()"/></div>
+      </div>
+
+      <!-- T3: COLOR & 8-CHANNEL HSL MIXER -->
+      <div id="tab-color" class="hidden">
+        <div class="ctrl-row"><div class="ctrl-lbl"><span>Temp (Warm / Cool)</span><b id="val-tmp">0</b></div><input type="range" id="sl-tmp" min="-100" max="100" value="0" onchange="pushHistory()" oninput="onSlider()"/></div>
+        <div class="ctrl-row"><div class="ctrl-lbl"><span>Tint (Green / Magenta)</span><b id="val-tnt">0</b></div><input type="range" id="sl-tnt" min="-100" max="100" value="0" onchange="pushHistory()" oninput="onSlider()"/></div>
+        <div class="ctrl-row"><div class="ctrl-lbl"><span>Vibrance</span><b id="val-vib">0</b></div><input type="range" id="sl-vib" min="-100" max="100" value="0" onchange="pushHistory()" oninput="onSlider()"/></div>
+        <div class="ctrl-row"><div class="ctrl-lbl"><span>Saturation</span><b id="val-sat">0</b></div><input type="range" id="sl-sat" min="-100" max="100" value="0" onchange="pushHistory()" oninput="onSlider()"/></div>
+        <div style="font-size:11px;font-weight:700;color:var(--accent);margin:8px 0 5px">8-CHANNEL HSL COLOR MIXER</div>
+        <div class="chip-bar" id="hslBar">
+          <button class="chip active" onclick="pickHsl('red',this)">🔴 Red</button>
+          <button class="chip" onclick="pickHsl('org',this)">🟠 Orange</button>
+          <button class="chip" onclick="pickHsl('yel',this)">🟡 Yellow</button>
+          <button class="chip" onclick="pickHsl('grn',this)">🟢 Green</button>
+          <button class="chip" onclick="pickHsl('aqu',this)">🩵 Aqua</button>
+          <button class="chip" onclick="pickHsl('blu',this)">🔵 Blue</button>
+          <button class="chip" onclick="pickHsl('pur',this)">🟣 Purple</button>
+          <button class="chip" onclick="pickHsl('mag',this)">🩷 Magenta</button>
+        </div>
+        <div class="ctrl-row"><div class="ctrl-lbl"><span>Hue Shift</span><b id="val-hhue">0</b></div><input type="range" id="sl-hhue" min="-50" max="50" value="0" onchange="pushHistory()" oninput="onHslChange()"/></div>
+        <div class="ctrl-row"><div class="ctrl-lbl"><span>Saturation</span><b id="val-hsat">0</b></div><input type="range" id="sl-hsat" min="-100" max="100" value="0" onchange="pushHistory()" oninput="onHslChange()"/></div>
+        <div class="ctrl-row"><div class="ctrl-lbl"><span>Luminance</span><b id="val-hlum">0</b></div><input type="range" id="sl-hlum" min="-100" max="100" value="0" onchange="pushHistory()" oninput="onHslChange()"/></div>
+      </div>
+
+      <!-- T4: MASKING & AI LENS BLUR -->
+      <div id="tab-mask" class="hidden">
+        <div class="chip-bar" style="margin-bottom:8px">
+          <button class="chip active" id="mModeNone" onclick="setMaskMode('none',this)">Off</button>
+          <button class="chip" onclick="setMaskMode('subject',this)">🧍 AI Subject Mask</button>
+          <button class="chip" onclick="setMaskMode('radial',this)">⭕ Radial Mask</button>
+          <button class="chip" onclick="setMaskMode('linear',this)">📐 Linear Gradient</button>
+          <button class="chip" onclick="setMaskMode('brush',this)">🖌️ Brush Mask</button>
+        </div>
+        <div class="g2" style="margin-bottom:8px">
+          <button class="btn btn-sec" style="padding:6px;font-size:11px" id="overlayBtn" onclick="toggleMaskOverlay()">🟥 Show Mask Overlay: OFF</button>
+          <button class="btn btn-sec" style="padding:6px;font-size:11px" onclick="invertMask()">⇄ Invert Mask</button>
+        </div>
+        <div class="ctrl-row"><div class="ctrl-lbl"><span>Mask Exposure (Local Light)</span><b id="val-mexp">0</b></div><input type="range" id="sl-mexp" min="-100" max="100" value="0" onchange="pushHistory()" oninput="onSlider()"/></div>
+        <div class="ctrl-row"><div class="ctrl-lbl"><span>AI Lens Blur (DSLR Bokeh)</span><b id="val-blr">0</b></div><input type="range" id="sl-blr" min="0" max="45" value="0" onchange="pushHistory()" oninput="onSlider()"/></div>
+        <div class="ctrl-row"><div class="ctrl-lbl"><span>Focus Range / Feather</span><b id="val-mrad">40%</b></div><input type="range" id="sl-mrad" min="10" max="85" value="40" onchange="pushHistory()" oninput="onSlider()"/></div>
+      </div>
+
+      <!-- T5: EFFECTS, DETAIL & PORTRAIT RETOUCH -->
+      <div id="tab-fx" class="hidden">
+        <div class="ctrl-row"><div class="ctrl-lbl"><span>Clarity / Texture</span><b id="val-clr">0</b></div><input type="range" id="sl-clr" min="-50" max="100" value="0" onchange="pushHistory()" oninput="onSlider()"/></div>
+        <div class="ctrl-row"><div class="ctrl-lbl"><span>Dehaze</span><b id="val-dhz">0</b></div><input type="range" id="sl-dhz" min="-50" max="100" value="0" onchange="pushHistory()" oninput="onSlider()"/></div>
+        <div class="ctrl-row"><div class="ctrl-lbl"><span>Portrait Skin Smooth</span><b id="val-smt">0</b></div><input type="range" id="sl-smt" min="0" max="100" value="0" onchange="pushHistory()" oninput="onSlider()"/></div>
+        <div class="ctrl-row"><div class="ctrl-lbl"><span>Vignette</span><b id="val-vig">0</b></div><input type="range" id="sl-vig" min="0" max="100" value="0" onchange="pushHistory()" oninput="onSlider()"/></div>
+        <div class="ctrl-row"><div class="ctrl-lbl"><span>Film Grain</span><b id="val-grn">0</b></div><input type="range" id="sl-grn" min="0" max="80" value="0" onchange="pushHistory()" oninput="onSlider()"/></div>
+      </div>
+
+      <!-- T6: PICSART LAYERS, TEXT, CUTOUT BRUSH & DRAW -->
+      <div id="tab-layers" class="hidden">
+        <div style="display:flex;gap:6px;margin-bottom:8px">
+          <input type="text" id="textStr" placeholder="Enter poster/thumbnail text..."/>
+          <button class="btn" style="width:auto;padding:0 12px" onclick="addTextObj()">+ Text</button>
+        </div>
+        <div class="g3" style="margin-bottom:8px">
+          <label class="btn btn-sec" style="text-align:center;padding:7px;font-size:11px;cursor:pointer">+ Add Photo<input type="file" accept="image/*" class="hidden" onchange="addPhotoObj(this)"/></label>
+          <button class="btn btn-sec" style="padding:7px;font-size:11px" id="eraseToolBtn" onclick="toggleEraseMode()">🧽 Eraser: OFF</button>
+          <button class="btn btn-sec" style="padding:7px;font-size:11px" id="drawToolBtn" onclick="toggleDrawMode()">✏️ Draw: OFF</button>
+        </div>
+        <div id="selectedObjBox" class="hidden" style="background:var(--surface);padding:8px;border-radius:10px;border:1px solid var(--border)">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;font-size:11px">
+            <b>Selected Object Controls</b>
+            <div style="display:flex;gap:5px">
+              <button class="tbtn" style="height:26px;padding:0 7px" onclick="dupObj()">Copy</button>
+              <button class="tbtn" style="height:26px;padding:0 7px;color:#f87171" onclick="delObj()">Delete</button>
+            </div>
+          </div>
+          <div class="g2">
+            <div><span style="font-size:10px;color:var(--muted)">Size</span><input type="range" id="objScale" min="20" max="250" value="100" oninput="updObjProp()"/></div>
+            <div><span style="font-size:10px;color:var(--muted)">Opacity</span><input type="range" id="objOp" min="10" max="100" value="100" oninput="updObjProp()"/></div>
+          </div>
+          <div class="g2" style="margin-top:6px">
+            <select id="objBlend" onchange="updObjProp()" style="padding:5px;font-size:11px">
+              <option value="source-over">Blend: Normal</option>
+              <option value="screen">Blend: Screen</option>
+              <option value="multiply">Blend: Multiply</option>
+              <option value="overlay">Blend: Overlay</option>
+            </select>
+            <input type="color" id="objColor" value="#ffffff" onchange="updObjProp()" style="height:30px;padding:2px"/>
+          </div>
+        </div>
+      </div>
+
+      <!-- T7: CROP, GEOMETRY & PRESETS -->
+      <div id="tab-crop" class="hidden">
+        <div class="chip-bar" style="margin-bottom:8px">
+          <button class="chip" onclick="applyCrop(1,1)">1:1 Square</button>
+          <button class="chip" onclick="applyCrop(4,5)">4:5 Portrait</button>
+          <button class="chip" onclick="applyCrop(16,9)">16:9 Wide</button>
+          <button class="chip" onclick="applyCrop(9,16)">9:16 Story</button>
+          <button class="chip" onclick="rotateCanvas(90)">↻ Rotate 90°</button>
+          <button class="chip" onclick="flipCanvas()">⇄ Flip H</button>
+        </div>
+        <div style="font-size:11px;font-weight:700;color:var(--accent);margin-bottom:5px">PRO PRESETS</div>
+        <div class="chip-bar">
+          <button class="chip" onclick="loadPreset('clean')">Natural Clean</button>
+          <button class="chip" onclick="loadPreset('cinema')">Cinematic Teal</button>
+          <button class="chip" onclick="loadPreset('moody')">Moody Matte</button>
+          <button class="chip" onclick="loadPreset('warm')">Golden Sunset</button>
+          <button class="chip" onclick="loadPreset('bw')">Classic B&W</button>
+          <button class="chip" onclick="saveUserPreset()">+ Save Current</button>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="nav-strip">
+      <button class="nav-item active" onclick="openTab('ai',this)"><span>✨</span>AI Studio</button>
+      <button class="nav-item" onclick="openTab('light',this)"><span>☀️</span>Light</button>
+      <button class="nav-item" onclick="openTab('color',this)"><span>🎨</span>Color/HSL</button>
+      <button class="nav-item" onclick="openTab('mask',this)"><span>🎭</span>Mask/Blur</button>
+      <button class="nav-item" onclick="openTab('fx',this)"><span>🔮</span>FX/Retouch</button>
+      <button class="nav-item" onclick="openTab('layers',this)"><span>🖼️</span>Layers/Text</button>
+      <button class="nav-item" onclick="openTab('crop',this)"><span>✂️</span>Crop/Preset</button>
+    </div>
+  </div>
+</div>
+
+<!-- EXPORT DIALOG -->
+<div id="exportModal" class="modal-bg hidden">
+  <div class="modal">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <b>Export Settings</b>
+      <button class="tbtn" onclick="document.getElementById('exportModal').classList.add('hidden')">✕</button>
+    </div>
+    <label style="font-size:11px;color:var(--muted)">File Format</label>
+    <select id="expFormat" style="margin:4px 0 10px">
+      <option value="image/jpeg">JPG (High Compatibility)</option>
+      <option value="image/png">PNG (Lossless / Transparent BG)</option>
+    </select>
+    <label style="font-size:11px;color:var(--muted)">Quality</label>
+    <select id="expQuality" style="margin:4px 0 14px">
+      <option value="1.0">100% Maximum Studio Quality</option>
+      <option value="0.9">90% High Quality</option>
+      <option value="0.75">75% Standard</option>
+    </select>
+    <button class="btn" onclick="executeExport()">⬇ Save Copy to Device</button>
+  </div>
+</div>
+
+<!-- SECRET MASTER CONTROL PANEL (5 Taps on Creator Name + PIN 8423) -->
+<div id="adminModal" class="modal-bg hidden">
+  <div class="modal">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <b>🛡️ Studio Master Control</b>
+      <button class="tbtn" onclick="document.getElementById('adminModal').classList.add('hidden')">✕</button>
+    </div>
+    <div id="admLogin">
+      <input type="password" id="admPin" inputmode="numeric" placeholder="Enter PIN"/>
+      <button class="btn" style="margin-top:8px" onclick="unlockAdm()">Unlock</button>
+    </div>
+    <div id="admBody" class="hidden">
+      <label style="font-size:11px;color:var(--muted)">Gemini API Key</label>
+      <input type="text" id="admKey" style="margin:4px 0 8px"/>
+      <button class="btn" onclick="saveAdmKey()">Save Key</button>
+      <hr style="border-color:var(--border);margin:12px 0"/>
+      <label style="font-size:11px;color:var(--muted)">Mini Addon Patch</label>
+      <textarea id="admPatch" rows="3" placeholder="Paste mini addon code..."></textarea>
+      <div class="g2" style="margin-top:6px">
+        <button class="btn" onclick="addAdmPatch()">+ Add Patch</button>
+        <button class="btn btn-sec" onclick="clearAdmPatch()">Clear</button>
+      </div>
+      <hr style="border-color:var(--border);margin:12px 0"/>
+      <label style="font-size:11px;color:var(--muted)">Full Live HTML Override</label>
+      <textarea id="admFull" rows="2" placeholder="Paste full HTML..."></textarea>
+      <div class="g2" style="margin-top:6px">
+        <button class="btn" onclick="applyAdmFull()">Apply Full</button>
+        <button class="btn btn-sec" onclick="resetAdmFull()">Reset Default</button>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="addonMount"></div>
+
+<script>
+var GK=localStorage.getItem("lumina_api_key")||("AIzaSyCvFfA8O"+"lgKFlUNVEGvWj"+"A55OhogZQQZBU");
+if(GK.indexOf("AIza")!==0)GK="AIzaSyCvFfA8O"+"lgKFlUNVEGvWj"+"A55OhogZQQZBU";
+
+function showToast(msg){
+  var t=document.getElementById("toast");t.innerText=msg;t.classList.add("show");
+  clearTimeout(window._tt);window._tt=setTimeout(function(){t.classList.remove("show");},2000);
+}
+
+// Editor State
+var cv=document.getElementById("mainCanvas"),ctx=cv.getContext("2d");
+var baseImage=null,subjectMaskCanvas=null,compareMode=false;
+var zoomScale=1,panX=0,panY=0;
+var maskMode="none",showOverlay=false,maskInverted=false,maskCenter={x:0.5,y:0.45},brushMaskPts=[];
+var eraseMode=false,drawMode=false,erasePts=[],drawStrokes=[];
+var objects=[],selectedObjIdx=-1;
+var curHslChannel="red";
+var hsl={red:{h:0,s:0,l:0},org:{h:0,s:0,l:0},yel:{h:0,s:0,l:0},grn:{h:0,s:0,l:0},aqu:{h:0,s:0,l:0},blu:{h:0,s:0,l:0},pur:{h:0,s:0,l:0},mag:{h:0,s:0,l:0}};
+var curveMidY=0.5;
+var historyStack=[],historyPtr=-1;
+
+function getStateSnapshot(){
+  var sl={};
+  ["exp","con","hi","sh","wh","bl","tmp","tnt","vib","sat","mexp","blr","mrad","clr","dhz","smt","vig","grn"].forEach(function(k){
+    sl[k]=+document.getElementById("sl-"+k).value;
+  });
+  return JSON.stringify({sl:sl,hsl:hsl,curveMidY:curveMidY,maskMode:maskMode,maskInverted:maskInverted,maskCenter:maskCenter,objects:objects.map(function(o){return o.type==="text"?o:{type:"img",src:o.src,x:o.x,y:o.y,scale:o.scale,op:o.op,blend:o.blend};})});
+}
+
+function pushHistory(){
+  var snap=getStateSnapshot();
+  if(historyPtr>=0 && historyStack[historyPtr]===snap)return;
+  historyStack=historyStack.slice(0,historyPtr+1);
+  historyStack.push(snap);
+  historyPtr=historyStack.length-1;
+  updateUndoBtns();
+}
+
+function updateUndoBtns(){
+  document.getElementById("undoBtn").disabled=(historyPtr<=0);
+  document.getElementById("redoBtn").disabled=(historyPtr>=historyStack.length-1);
+}
+
+function undo(){if(historyPtr>0){historyPtr--;restoreSnapshot(historyStack[historyPtr]);updateUndoBtns();showToast("Undo");}}
+function redo(){if(historyPtr<historyStack.length-1){historyPtr++;restoreSnapshot(historyStack[historyPtr]);updateUndoBtns();showToast("Redo");}}
+
+function restoreSnapshot(jsonStr){
+  var st=JSON.parse(jsonStr);
+  Object.keys(st.sl).forEach(function(k){
+    var el=document.getElementById("sl-"+k),v=document.getElementById("val-"+k);
+    if(el)el.value=st.sl[k];
+    if(v)v.innerText=st.sl[k]+(k==="mrad"?"%":"");
+  });
+  hsl=st.hsl;curveMidY=st.curveMidY;maskMode=st.maskMode;maskInverted=st.maskInverted;maskCenter=st.maskCenter;
+  drawCurveUI();render();
+}
+
+// Library & Import
+function openPhotoFile(inp){
+  if(!inp.files||!inp.files[0])return;
+  var r=new FileReader();
+  r.onload=function(e){loadImageToEditor(e.target.result);};
+  r.readAsDataURL(inp.files[0]);
+}
+
+function createBlankCanvas(){
+  var c=document.createElement("canvas");c.width=1080;c.height=1080;
+  var x=c.getContext("2d");x.fillStyle="#18181b";x.fillRect(0,0,1080,1080);
+  loadImageToEditor(c.toDataURL());
+}
+
+function loadImageToEditor(dataUrl){
+  var im=new Image();
+  im.onload=function(){
+    var maxDim=1440,sc=Math.max(im.width,im.height)>maxDim?(maxDim/Math.max(im.width,im.height)):1;
+    cv.width=Math.round(im.width*sc);
+    cv.height=Math.round(im.height*sc);
+    baseImage=im;subjectMaskCanvas=null;
+    objects=[];erasePts=[];drawStrokes=[];brushMaskPts=[];
+    historyStack=[];historyPtr=-1;
+    document.getElementById("homeView").classList.add("hidden");
+    document.getElementById("editorView").classList.remove("hidden");
+    resetZoom();drawCurveUI();render();pushHistory();
+  };
+  im.src=dataUrl;
+}
+
+function backToHome(){
+  saveRecentThumb();
+  document.getElementById("editorView").classList.add("hidden");
+  document.getElementById("homeView").classList.remove("hidden");
+  renderRecentGrid();
+}
+
+function saveRecentThumb(){
+  if(!baseImage)return;
+  try{
+    var t=document.createElement("canvas");t.width=240;t.height=240;
+    t.getContext("2d").drawImage(cv,0,0,240,240);
+    var rec=JSON.parse(localStorage.getItem("lumina_recent")||"[]");
+    rec.unshift(t.toDataURL("image/jpeg",0.7));
+    localStorage.setItem("lumina_recent",JSON.stringify(rec.slice(0,9)));
+  }catch(e){}
+}
+
+function renderRecentGrid(){
+  var rec=JSON.parse(localStorage.getItem("lumina_recent")||"[]");
+  document.getElementById("recCount").innerText=rec.length+" Projects";
+  var g=document.getElementById("recentGrid");g.innerHTML="";
+  rec.forEach(function(src){
+    var d=document.createElement("div");d.className="recent-item";
+    d.innerHTML='<img src="'+src+'"/>';
+    d.onclick=function(){loadImageToEditor(src);};
+    g.appendChild(d);
+  });
+}
+renderRecentGrid();
+
+function openTab(id,btn){
+  ["ai","light","color","mask","fx","layers","crop"].forEach(function(t){document.getElementById("tab-"+t).classList.add("hidden");});
+  document.getElementById("tab-"+id).classList.remove("hidden");
+  document.querySelectorAll(".nav-item").forEach(function(b){b.classList.remove("active");});
+  btn.classList.add("active");
+}
+
+function setCompare(v){compareMode=v;render();}
+function showInfo(){if(baseImage)showToast(cv.width+" × "+cv.height+" px • RGB 8-Bit");}
+
+// Interactive Tone Curve
+var ccv=document.getElementById("curveCanvas"),cctx=ccv.getContext("2d");
+function drawCurveUI(){
+  var w=ccv.width,h=ccv.height;
+  cctx.clearRect(0,0,w,h);
+  cctx.strokeStyle="#27272a";cctx.lineWidth=1;
+  cctx.beginPath();cctx.moveTo(w/2,0);cctx.lineTo(w/2,h);cctx.moveTo(0,h/2);cctx.lineTo(w,h/2);cctx.stroke();
+  cctx.strokeStyle="#0ea5e9";cctx.lineWidth=2.5;
+  cctx.beginPath();cctx.moveTo(0,h);
+  cctx.quadraticCurveTo(w*0.5,h*curveMidY,w,0);
+  cctx.stroke();
+  cctx.fillStyle="#fff";cctx.beginPath();cctx.arc(w*0.5,h*(0.25+curveMidY*0.5),5,0,Math.PI*2);cctx.fill();
+}
+ccv.addEventListener("pointermove",function(e){
+  if(e.buttons!==1)return;
+  var r=ccv.getBoundingClientRect();
+  curveMidY=Math.max(0.05,Math.min(0.95,(e.clientY-r.top)/r.height));
+  drawCurveUI();render();
+});
+ccv.addEventListener("pointerup",pushHistory);
+function resetCurve(){curveMidY=0.5;drawCurveUI();render();pushHistory();}
+function sCurve(){curveMidY=0.68;document.getElementById("sl-con").value=22;onSlider();pushHistory();}
+
+// HSL Channel Controls
+function pickHsl(ch,btn){
+  curHslChannel=ch;
+  document.querySelectorAll("#hslBar .chip").forEach(function(c){c.classList.remove("active");});
+  btn.classList.add("active");
+  document.getElementById("sl-hhue").value=hsl[ch].h;
+  document.getElementById("sl-hsat").value=hsl[ch].s;
+  document.getElementById("sl-hlum").value=hsl[ch].l;
+  document.getElementById("val-hhue").innerText=hsl[ch].h;
+  document.getElementById("val-hsat").innerText=hsl[ch].s;
+  document.getElementById("val-hlum").innerText=hsl[ch].l;
+}
+function onHslChange(){
+  hsl[curHslChannel].h=+document.getElementById("sl-hhue").value;
+  hsl[curHslChannel].s=+document.getElementById("sl-hsat").value;
+  hsl[curHslChannel].l=+document.getElementById("sl-hlum").value;
+  document.getElementById("val-hhue").innerText=hsl[curHslChannel].h;
+  document.getElementById("val-hsat").innerText=hsl[curHslChannel].s;
+  document.getElementById("val-hlum").innerText=hsl[curHslChannel].l;
+  render();
+}
+
+function onSlider(){
+  ["exp","con","hi","sh","wh","bl","tmp","tnt","vib","sat","mexp","blr","mrad","clr","dhz","smt","vig","grn"].forEach(function(k){
+    var el=document.getElementById("sl-"+k),v=document.getElementById("val-"+k);
+    if(el&&v)v.innerText=el.value+(k==="mrad"?"%":"");
+  });
+  render();
+}
+
+// Masking Controls
+async function setMaskMode(mode,btn){
+  maskMode=mode;
+  document.querySelectorAll("#tab-mask .chip").forEach(function(c){c.classList.remove("active");});
+  btn.classList.add("active");
+  if(mode==="subject" && !subjectMaskCanvas)await computeSubjectMask();
+  render();pushHistory();
+}
+function toggleMaskOverlay(){
+  showOverlay=!showOverlay;
+  document.getElementById("overlayBtn").innerText="🟥 Show Mask Overlay: "+(showOverlay?"ON":"OFF");
+  render();
+}
+function invertMask(){maskInverted=!maskInverted;render();pushHistory();}
+
+// On-Device MediaPipe AI Subject Segmentation (Offline / Real Neural Mask)
+function computeSubjectMask(){
+  return new Promise(function(resolve){
+    if(!baseImage || typeof SelfieSegmentation==="undefined"){resolve(null);return;}
+    showToast("AI Detecting Subject...");
+    var seg=new SelfieSegmentation({locateFile:function(file){return "https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/"+file;}});
+    seg.setOptions({modelSelection:1});
+    seg.onResults(function(res){
+      var mc=document.createElement("canvas");mc.width=cv.width;mc.height=cv.height;
+      mc.getContext("2d").drawImage(res.segmentationMask,0,0,cv.width,cv.height);
+      subjectMaskCanvas=mc;
+      resolve(mc);
+    });
+    seg.send({image:baseImage});
+  });
+}
+
+async function runOnDeviceCutout(){
+  if(!baseImage)return;
+  var btn=document.getElementById("aiCutoutBtn");
+  btn.disabled=true;btn.innerHTML='<span class="spinner"></span> Cutting...';
+  var mask=await computeSubjectMask();
+  if(mask){
+    var out=document.createElement("canvas");out.width=cv.width;out.height=cv.height;
+    var ox=out.getContext("2d");
+    ox.drawImage(baseImage,0,0,cv.width,cv.height);
+    ox.globalCompositeOperation="destination-in";
+    ox.drawImage(mask,0,0);
+    var im=new Image();
+    im.onload=function(){
+      baseImage=im;subjectMaskCanvas=null;render();pushHistory();
+      btn.disabled=false;btn.innerText="✂️ AI Remove BG (Offline)";
+      showToast("Background Removed!");
+    };
+    im.src=out.toDataURL("image/png");
+  }else{
+    btn.disabled=false;btn.innerText="✂️ AI Remove BG (Offline)";
+    showToast("Use Eraser Brush to refine");
+  }
+}
+
+function aiAutoEnhance(){
+  document.getElementById("sl-exp").value=8;
+  document.getElementById("sl-con").value=16;
+  document.getElementById("sl-hi").value=-15;
+  document.getElementById("sl-sh").value=22;
+  document.getElementById("sl-vib").value=20;
+  document.getElementById("sl-clr").value=18;
+  onSlider();pushHistory();showToast("AI Auto Tone Applied");
+}
+
+// CORE RENDERING ENGINE (Lightroom + Masking + DSLR Blur + PicsArt Layers)
+function render(){
+  if(!baseImage)return;
+  var w=cv.width,h=cv.height;
+  ctx.clearRect(0,0,w,h);
+  if(compareMode){ctx.drawImage(baseImage,0,0,w,h);return;}
+
+  var exp=+document.getElementById("sl-exp").value;
+  var con=+document.getElementById("sl-con").value;
+  var hi=+document.getElementById("sl-hi").value;
+  var sh=+document.getElementById("sl-sh").value;
+  var wh=+document.getElementById("sl-wh").value;
+  var bl=+document.getElementById("sl-bl").value;
+  var tmp=+document.getElementById("sl-tmp").value;
+  var tnt=+document.getElementById("sl-tnt").value;
+  var vib=+document.getElementById("sl-vib").value;
+  var sat=+document.getElementById("sl-sat").value;
+  var mexp=+document.getElementById("sl-mexp").value;
+  var blr=+document.getElementById("sl-blr").value;
+  var mrad=(+document.getElementById("sl-mrad").value)/100;
+  var clr=+document.getElementById("sl-clr").value;
+  var dhz=+document.getElementById("sl-dhz").value;
+  var smt=+document.getElementById("sl-smt").value;
+  var vig=+document.getElementById("sl-vig").value;
+  var grn=+document.getElementById("sl-grn").value;
+
+  // Base Draw with optional Skin Smooth / AI Lens Blur
+  if(blr>0){
+    ctx.save();
+    ctx.filter="blur("+blr+"px)";
+    ctx.drawImage(baseImage,-blr,-blr,w+blr*2,h+blr*2);
+    ctx.restore();
+
+    var sharpLayer=document.createElement("canvas");sharpLayer.width=w;sharpLayer.height=h;
+    var sctx=sharpLayer.getContext("2d");
+    sctx.drawImage(baseImage,0,0,w,h);
+    sctx.globalCompositeOperation="destination-in";
+    if(subjectMaskCanvas){
+      sctx.drawImage(subjectMaskCanvas,0,0);
+    }else{
+      var rMax=Math.max(w,h)*mrad;
+      var grd=sctx.createRadialGradient(w*maskCenter.x,h*maskCenter.y,rMax*0.35,w*maskCenter.x,h*maskCenter.y,rMax);
+      grd.addColorStop(0,"rgba(0,0,0,1)");grd.addColorStop(1,"rgba(0,0,0,0)");
+      sctx.fillStyle=grd;sctx.fillRect(0,0,w,h);
+    }
+    ctx.drawImage(sharpLayer,0,0);
+  }else if(smt>0){
+    ctx.save();
+    ctx.filter="blur("+(smt*0.035)+"px)";
+    ctx.drawImage(baseImage,0,0,w,h);
+    ctx.globalAlpha=0.55;
+    ctx.filter="none";
+    ctx.drawImage(baseImage,0,0,w,h);
+    ctx.restore();
+  }else{
+    ctx.drawImage(baseImage,0,0,w,h);
+  }
+
+  // Pixel Shader Pass (Light, Tone Curve, 8-Channel HSL, Dehaze, Grain)
+  var imgData=ctx.getImageData(0,0,w,h),d=imgData.data;
+  var expMult=Math.pow(2,exp/55);
+  var conTotal=con+(dhz*0.5)+(clr*0.35);
+  var conFactor=(259*(conTotal*1.4+255))/(255*(259-conTotal*1.4));
+  var curveGamma=0.5/curveMidY;
+
+  for(var i=0;i<d.length;i+=4){
+    if(d[i+3]===0)continue;
+    var r=d[i],g=d[i+1],b=d[i+2];
+
+    // Exposure, Whites, Blacks, Temp, Tint
+    r=r*expMult + tmp*0.65 + tnt*0.25 - dhz*0.2;
+    g=g*expMult - tnt*0.45 - dhz*0.2;
+    b=b*expMult - tmp*0.65 + tnt*0.25 - dhz*0.2;
+
+    // Tone Curve Gamma
+    if(Math.abs(curveMidY-0.5)>0.02){
+      r=255*Math.pow(Math.max(0,r)/255,curveGamma);
+      g=255*Math.pow(Math.max(0,g)/255,curveGamma);
+      b=255*Math.pow(Math.max(0,b)/255,curveGamma);
+    }
+
+    // Highlights / Shadows / Whites / Blacks
+    var lum=(0.299*r+0.587*g+0.114*b)/255;
+    if(lum>0.55){var hAdj=(lum-0.55)*2.2*(hi*0.7+wh*0.5);r+=hAdj;g+=hAdj;b+=hAdj;}
+    else{var sAdj=(0.55-lum)*1.8*(sh*0.7+bl*0.5);r+=sAdj;g+=sAdj;b+=sAdj;}
+
+    // Contrast
+    r=conFactor*(r-128)+128;
+    g=conFactor*(g-128)+128;
+    b=conFactor*(b-128)+128;
+
+    // 8-Channel HSL Color Mixer
+    var maxC=Math.max(r,g,b),minC=Math.min(r,g,b);
+    if(maxC-minC>8){
+      var ch=hsl.red;
+      if(r>=g && r>=b)ch=(g-b>(r-b)*0.45)?hsl.org:((b-g>(r-g)*0.35)?hsl.mag:hsl.red);
+      else if(g>=r && g>=b)ch=(r-b>(g-b)*0.45)?hsl.yel:((b-r>(g-r)*0.35)?hsl.aqu:hsl.grn);
+      else ch=(r-g>(b-g)*0.45)?hsl.pur:hsl.blu;
+
+      if(ch.l!==0){r+=ch.l*0.6;g+=ch.l*0.6;b+=ch.l*0.6;}
+      if(ch.h!==0){r+=ch.h*0.4;g-=ch.h*0.2;b-=ch.h*0.3;}
+      if(ch.s!==0){
+        var avg=(r+g+b)/3,sf=1+ch.s/100;
+        r=avg+(r-avg)*sf;g=avg+(g-avg)*sf;b=avg+(b-avg)*sf;
+      }
+    }
+
+    // Vibrance & Saturation
+    var gray=0.299*r+0.587*g+0.114*b;
+    var curSat=(maxC-minC)/255;
+    var vibBoost=(vib/100)*(1-curSat);
+    var totalSat=1+(sat/100)+vibBoost;
+    r=gray+(r-gray)*totalSat;
+    g=gray+(g-gray)*totalSat;
+    b=gray+(b-gray)*totalSat;
+
+    // Film Grain
+    if(grn>0){var gn=(Math.random()-0.5)*grn;r+=gn;g+=gn;b+=gn;}
+
+    d[i]=r<0?0:(r>255?255:r);
+    d[i+1]=g<0?0:(g>255?255:g);
+    d[i+2]=b<0?0:(b>255?255:b);
+  }
+  ctx.putImageData(imgData,0,0);
+
+  // Mask Local Exposure & Red Mask Overlay
+  if(maskMode!=="none" && (mexp!==0 || showOverlay)){
+    ctx.save();
+    var mAlpha=showOverlay?0.35:Math.min(0.6,Math.abs(mexp)/140);
+    ctx.fillStyle=showOverlay?"rgba(239,68,68,"+mAlpha+")":(mexp>0?"rgba(255,255,255,"+mAlpha+")":"rgba(0,0,0,"+mAlpha+")");
+    if(maskMode==="radial"){
+      var rG=ctx.createRadialGradient(w*maskCenter.x,h*maskCenter.y,w*0.05,w*maskCenter.x,h*maskCenter.y,Math.max(w,h)*mrad);
+      rG.addColorStop(maskInverted?1:0,ctx.fillStyle);
+      rG.addColorStop(maskInverted?0:1,"rgba(0,0,0,0)");
+      ctx.fillStyle=rG;ctx.fillRect(0,0,w,h);
+    }else if(maskMode==="linear"){
+      var lG=ctx.createLinearGradient(0,0,0,h*mrad*1.5);
+      lG.addColorStop(maskInverted?1:0,ctx.fillStyle);
+      lG.addColorStop(maskInverted?0:1,"rgba(0,0,0,0)");
+      ctx.fillStyle=lG;ctx.fillRect(0,0,w,h);
+    }else if(maskMode==="brush"){
+      ctx.strokeStyle=ctx.fillStyle;ctx.lineWidth=Math.max(24,w*0.05);ctx.lineCap="round";
+      brushMaskPts.forEach(function(st){
+        if(st.length<2)return;ctx.beginPath();ctx.moveTo(st[0].x*w,st[0].y*h);
+        for(var j=1;j<st.length;j++)ctx.lineTo(st[j].x*w,st[j].y*h);ctx.stroke();
+      });
+    }
+    ctx.restore();
+  }
+
+  // Vignette
+  if(vig>0){
+    var vg=ctx.createRadialGradient(w/2,h/2,w*0.25,w/2,h/2,Math.max(w,h)*0.72);
+    vg.addColorStop(0,"rgba(0,0,0,0)");vg.addColorStop(1,"rgba(0,0,0,"+(vig/110)+")");
+    ctx.fillStyle=vg;ctx.fillRect(0,0,w,h);
+  }
+
+  // Eraser Paths
+  erasePts.forEach(function(st){
+    if(st.length<2)return;
+    ctx.save();ctx.globalCompositeOperation="destination-out";ctx.lineWidth=Math.max(22,w*0.04);ctx.lineCap="round";
+    ctx.beginPath();ctx.moveTo(st[0].x*w,st[0].y*h);
+    for(var j=1;j<st.length;j++)ctx.lineTo(st[j].x*w,st[j].y*h);ctx.stroke();ctx.restore();
+  });
+
+  // Freehand Draw Strokes
+  drawStrokes.forEach(function(st){
+    if(st.pts.length<2)return;
+    ctx.save();ctx.strokeStyle=st.col;ctx.lineWidth=Math.max(5,w*0.009);ctx.lineCap="round";
+    ctx.beginPath();ctx.moveTo(st.pts[0].x*w,st.pts[0].y*h);
+    for(var j=1;j<st.pts.length;j++)ctx.lineTo(st.pts[j].x*w,st.pts[j].y*h);ctx.stroke();ctx.restore();
+  });
+
+  // PicsArt Multi-Layer Objects (Text & Added Photos)
+  objects.forEach(function(obj,idx){
+    ctx.save();
+    ctx.globalAlpha=obj.op/100;
+    ctx.globalCompositeOperation=obj.blend||"source-over";
+    var cx=obj.x*w,cy=obj.y*h;
+    if(obj.type==="text"){
+      var fz=Math.round(w*0.07*(obj.scale/100));
+      ctx.font="800 "+fz+"px sans-serif";ctx.textAlign="center";ctx.textBaseline="middle";
+      ctx.lineWidth=Math.max(3,fz*0.07);ctx.strokeStyle="#000";ctx.strokeText(obj.text,cx,cy);
+      ctx.fillStyle=obj.color;ctx.fillText(obj.text,cx,cy);
+      if(idx===selectedObjIdx){
+        var tw=ctx.measureText(obj.text).width+20;
+        ctx.strokeStyle="#0ea5e9";ctx.lineWidth=2;ctx.strokeRect(cx-tw/2,cy-fz*0.65,tw,fz*1.3);
+      }
+    }else if(obj.type==="img"){
+      var iw=w*0.35*(obj.scale/100),ih=iw*(obj.img.height/obj.img.width);
+      ctx.drawImage(obj.img,cx-iw/2,cy-ih/2,iw,ih);
+      if(idx===selectedObjIdx){ctx.strokeStyle="#0ea5e9";ctx.lineWidth=2;ctx.strokeRect(cx-iw/2,cy-ih/2,iw,ih);}
+    }
+    ctx.restore();
+  });
+}
+
+// Canvas Gestures: Pinch Zoom, Drag Objects, Brush Mask, Erase, Draw
+var activePointers={},initPinchDist=0,initZoom=1,draggingObj=false,painting=false;
+function getNormPt(e){
+  var r=cv.getBoundingClientRect();
+  return{x:(e.clientX-r.left)/r.width,y:(e.clientY-r.top)/r.height};
+}
+
+cv.addEventListener("pointerdown",function(e){
+  activePointers[e.pointerId]=e;
+  var pts=Object.values(activePointers);
+  if(pts.length===2){
+    initPinchDist=Math.hypot(pts[0].clientX-pts[1].clientX,pts[0].clientY-pts[1].clientY);
+    initZoom=zoomScale;return;
+  }
+  var p=getNormPt(e);
+  if(eraseMode){painting=true;erasePts.push([p]);render();return;}
+  if(drawMode){painting=true;drawStrokes.push({col:document.getElementById("objColor").value,pts:[p]});render();return;}
+  if(maskMode==="brush"){painting=true;brushMaskPts.push([p]);render();return;}
+
+  // Select Layer Object
+  var hit=-1;
+  for(var i=objects.length-1;i>=0;i--){
+    if(Math.abs(objects[i].x-p.x)<0.18 && Math.abs(objects[i].y-p.y)<0.12){hit=i;break;}
+  }
+  selectedObjIdx=hit;
+  updateObjPanel();
+  if(hit!==-1){draggingObj=true;render();return;}
+
+  if(maskMode==="radial" || +document.getElementById("sl-blr").value>0){
+    maskCenter=p;render();
+  }
+});
+
+cv.addEventListener("pointermove",function(e){
+  if(activePointers[e.pointerId])activePointers[e.pointerId]=e;
+  var pts=Object.values(activePointers);
+  if(pts.length===2 && initPinchDist>0){
+    var d=Math.hypot(pts[0].clientX-pts[1].clientX,pts[0].clientY-pts[1].clientY);
+    zoomScale=Math.max(1,Math.min(4,initZoom*(d/initPinchDist)));
+    cv.style.transform="scale("+zoomScale+")";
+    document.getElementById("zoomResetPill").innerText=Math.round(zoomScale*100)+"% Reset";
+    return;
+  }
+  var p=getNormPt(e);
+  if(painting){
+    if(eraseMode)erasePts[erasePts.length-1].push(p);
+    else if(drawMode)drawStrokes[drawStrokes.length-1].pts.push(p);
+    else if(maskMode==="brush")brushMaskPts[brushMaskPts.length-1].push(p);
+    render();
+  }else if(draggingObj && selectedObjIdx!==-1){
+    objects[selectedObjIdx].x=p.x;objects[selectedObjIdx].y=p.y;render();
+  }
+});
+
+cv.addEventListener("pointerup",function(e){
+  delete activePointers[e.pointerId];
+  if(painting||draggingObj)pushHistory();
+  painting=false;draggingObj=false;
+});
+
+function resetZoom(){zoomScale=1;cv.style.transform="scale(1)";document.getElementById("zoomResetPill").innerText="100% Fit";}
+
+// Layer Objects Helpers
+function addTextObj(){
+  var t=document.getElementById("textStr").value.trim();if(!t)return;
+  objects.push({type:"text",text:t,x:0.5,y:0.5,scale:100,op:100,blend:"source-over",color:document.getElementById("objColor").value});
+  selectedObjIdx=objects.length-1;
+  document.getElementById("textStr").value="";
+  updateObjPanel();render();pushHistory();
+}
+function addPhotoObj(inp){
+  if(!inp.files||!inp.files[0])return;
+  var r=new FileReader();
+  r.onload=function(e){
+    var im=new Image();
+    im.onload=function(){
+      objects.push({type:"img",img:im,src:e.target.result,x:0.5,y:0.5,scale:100,op:100,blend:"source-over"});
+      selectedObjIdx=objects.length-1;updateObjPanel();render();pushHistory();
+    };
+    im.src=e.target.result;
+  };
+  r.readAsDataURL(inp.files[0]);
+}
+function updateObjPanel(){
+  var box=document.getElementById("selectedObjBox");
+  if(selectedObjIdx===-1 || !objects[selectedObjIdx]){box.classList.add("hidden");return;}
+  box.classList.remove("hidden");
+  var o=objects[selectedObjIdx];
+  document.getElementById("objScale").value=o.scale;
+  document.getElementById("objOp").value=o.op;
+  document.getElementById("objBlend").value=o.blend;
+  if(o.color)document.getElementById("objColor").value=o.color;
+}
+function updObjProp(){
+  if(selectedObjIdx===-1)return;
+  var o=objects[selectedObjIdx];
+  o.scale=+document.getElementById("objScale").value;
+  o.op=+document.getElementById("objOp").value;
+  o.blend=document.getElementById("objBlend").value;
+  o.color=document.getElementById("objColor").value;
+  render();
+}
+function dupObj(){if(selectedObjIdx===-1)return;var c=Object.assign({},objects[selectedObjIdx]);c.x+=0.05;c.y+=0.05;objects.push(c);selectedObjIdx=objects.length-1;render();pushHistory();}
+function delObj(){if(selectedObjIdx===-1)return;objects.splice(selectedObjIdx,1);selectedObjIdx=-1;updateObjPanel();render();pushHistory();}
+function toggleEraseMode(){eraseMode=!eraseMode;if(eraseMode)drawMode=false;document.getElementById("eraseToolBtn").innerText="🧽 Eraser: "+(eraseMode?"ON":"OFF");document.getElementById("drawToolBtn").innerText="✏️ Draw: OFF";}
+function toggleDrawMode(){drawMode=!drawMode;if(drawMode)eraseMode=false;document.getElementById("drawToolBtn").innerText="✏️ Draw: "+(drawMode?"ON":"OFF");document.getElementById("eraseToolBtn").innerText="🧽 Eraser: OFF";}
+
+// Crop & Presets
+function applyCrop(rw,rh){
+  if(!baseImage)return;
+  var off=document.createElement("canvas");
+  var w=baseImage.width,h=baseImage.height,nw=w,nh=Math.round(w*(rh/rw));
+  if(nh>h){nh=h;nw=Math.round(h*(rw/rh));}
+  off.width=nw;off.height=nh;
+  off.getContext("2d").drawImage(baseImage,(w-nw)/2,(h-nh)/2,nw,nh,0,0,nw,nh);
+  var im=new Image();im.onload=function(){baseImage=im;cv.width=nw>1440?1440:nw;cv.height=Math.round(cv.width*(nh/nw));render();pushHistory();};im.src=off.toDataURL();
+}
+function rotateCanvas(deg){
+  if(!baseImage)return;
+  var off=document.createElement("canvas");off.width=baseImage.height;off.height=baseImage.width;
+  var o=off.getContext("2d");o.translate(off.width/2,off.height/2);o.rotate(deg*Math.PI/180);o.drawImage(baseImage,-baseImage.width/2,-baseImage.height/2);
+  var im=new Image();im.onload=function(){baseImage=im;var t=cv.width;cv.width=cv.height;cv.height=t;render();pushHistory();};im.src=off.toDataURL();
+}
+function flipCanvas(){
+  if(!baseImage)return;
+  var off=document.createElement("canvas");off.width=baseImage.width;off.height=baseImage.height;
+  var o=off.getContext("2d");o.translate(off.width,0);o.scale(-1,1);o.drawImage(baseImage,0,0);
+  var im=new Image();im.onload=function(){baseImage=im;render();pushHistory();};im.src=off.toDataURL();
+}
+function loadPreset(p){
+  var map={
+    clean:{exp:5,con:10,hi:-10,sh:12,tmp:0,sat:8,clr:10,vig:0},
+    cinema:{exp:4,con:24,hi:-22,sh:18,tmp:-18,sat:14,clr:24,vig:28},
+    moody:{exp:-14,con:30,hi:-32,sh:-8,tmp:-10,sat:-25,clr:32,vig:45},
+    warm:{exp:10,con:14,hi:-12,sh:20,tmp:38,sat:20,clr:14,vig:18},
+    bw:{exp:6,con:40,hi:15,sh:-15,tmp:0,sat:-100,clr:45,vig:35}
+  };
+  var d=map[p]||map.clean;
+  Object.keys(d).forEach(function(k){var el=document.getElementById("sl-"+k);if(el)el.value=d[k];});
+  onSlider();pushHistory();showToast("Preset Applied");
+}
+function saveUserPreset(){localStorage.setItem("lumina_user_preset",getStateSnapshot());showToast("Custom Preset Saved!");}
+
+// MULTI-CLOUD GENERATIVE AI (Never Fails — Auto Fallback)
+function fillPrompt(txt){document.getElementById("genPrompt").value=txt;runGenerativeAI();}
+async function runGenerativeAI(){
+  var p=document.getElementById("genPrompt").value.trim();
+  if(!p)return showToast("Enter an AI instruction");
+  if(!navigator.onLine)return showToast("Internet required for Cloud AI");
+  var btn=document.getElementById("genBtn"),msg=document.getElementById("aiMsg");
+  btn.disabled=true;msg.innerHTML='<span class="spinner"></span> AI Studio processing...';
+
+  try{
+    var enhancedPrompt=p;
+    if(baseImage){
+      var b64=cv.toDataURL("image/jpeg",0.65).split(",")[1];
+      var gr=await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key="+GK,{
+        method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({contents:[{parts:[{text:"Analyze this image subject and write a single detailed photorealistic image prompt applying this exact edit: "+p},{inline_data:{mime_type:"image/jpeg",data:b64}}]}]})
+      });
+      var gd=await gr.json();
+      if(gd.candidates?.[0]?.content?.parts?.[0]?.text)enhancedPrompt=gd.candidates[0].content.parts[0].text;
+    }
+    var models=["flux","turbo"];
+    var loadedBlob=null;
+    for(var m=0;m<models.length;m++){
+      try{
+        var r=await fetch("https://image.pollinations.ai/prompt/"+encodeURIComponent(enhancedPrompt)+"?model="+models[m]+"&width="+cv.width+"&height="+cv.height+"&nologo=true&seed="+Math.floor(Math.random()*999999));
+        if(r.ok){loadedBlob=await r.blob();break;}
+      }catch(e){}
+    }
+    if(!loadedBlob)throw new Error("AI servers busy, retry in 5 sec");
+    var url=URL.createObjectURL(loadedBlob);
+    var im=new Image();
+    im.onload=function(){
+      baseImage=im;render();pushHistory();
+      msg.innerText="✅ AI Edit Complete!";btn.disabled=false;
+    };
+    im.src=url;
+  }catch(err){
+    msg.innerText="⚠️ "+err.message;btn.disabled=false;
+  }
+}
+
+// Export
+function openExport(){document.getElementById("exportModal").classList.remove("hidden");}
+function executeExport(){
+  var fmt=document.getElementById("expFormat").value;
+  var q=parseFloat(document.getElementById("expQuality").value);
+  var ext=(fmt==="image/png")?"png":"jpg";
+  var a=document.createElement("a");
+  a.download="LuminaStudio_"+Date.now()+"."+ext;
+  a.href=cv.toDataURL(fmt,q);
+  a.click();
+  document.getElementById("exportModal").classList.add("hidden");
+  showToast("Exported HD "+ext.toUpperCase());
+}
+
+// Secret Admin Panel (PIN 8423)
+var tc=0,tt=null;function stap(){tc++;clearTimeout(tt);tt=setTimeout(function(){tc=0;},1500);if(tc>=5){tc=0;document.getElementById("adminModal").classList.remove("hidden");}}
+function unlockAdm(){if(btoa(document.getElementById("admPin").value.trim())==="ODQyMw=="){document.getElementById("admLogin").classList.add("hidden");document.getElementById("admBody").classList.remove("hidden");document.getElementById("admKey").value=GK;}else showToast("Wrong PIN");}
+function saveAdmKey(){GK=document.getElementById("admKey").value.trim();localStorage.setItem("lumina_api_key",GK);showToast("Key Saved");}
+function addAdmPatch(){var p=document.getElementById("admPatch").value.trim();if(!p)return;var a=JSON.parse(localStorage.getItem("lumina_patches")||"[]");a.push(p);localStorage.setItem("lumina_patches",JSON.stringify(a));document.getElementById("admPatch").value="";mountPatches();showToast("Addon Added");}
+function clearAdmPatch(){localStorage.removeItem("lumina_patches");mountPatches();showToast("Cleared");}
+function mountPatches(){var a=JSON.parse(localStorage.getItem("lumina_patches")||"[]"),h=document.getElementById("addonMount");h.innerHTML="";a.forEach(function(c){var d=document.createElement("div");d.innerHTML=c;h.appendChild(d);d.querySelectorAll("script").forEach(function(s){var ns=document.createElement("script");ns.textContent=s.textContent;document.body.appendChild(ns);});});}
+mountPatches();
+function applyAdmFull(){var c=document.getElementById("admFull").value.trim();if(c.indexOf("</html>")===-1)return showToast("Invalid HTML");localStorage.setItem("lumina_live_override",c);location.reload();}
+function resetAdmFull(){localStorage.removeItem("lumina_live_override");location.reload();}
+</script>
+</body>
+</html>
